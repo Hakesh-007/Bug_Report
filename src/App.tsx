@@ -38,6 +38,7 @@ interface User {
 interface BugTicket {
   id: string;
   title: string;
+  description: string;
   reportedAt: string;
   category: string;
   priority: Priority;
@@ -53,6 +54,7 @@ const MOCK_BUGS: BugTicket[] = [
   {
     id: '#BT-1024',
     title: 'Navigation header overlap on mobile viewport',
+    description: 'The header overlaps with the content when viewed on small screens.',
     reportedAt: '2 hours ago',
     category: 'UI/UX',
     priority: 'high',
@@ -62,6 +64,7 @@ const MOCK_BUGS: BugTicket[] = [
   {
     id: '#BT-1023',
     title: 'API Timeout on dashboard heavy load',
+    description: 'The dashboard fails to load when there are many concurrent users.',
     reportedAt: 'yesterday',
     category: 'Backend',
     priority: 'low',
@@ -71,6 +74,7 @@ const MOCK_BUGS: BugTicket[] = [
   {
     id: '#BT-1019',
     title: 'Inconsistent padding on status chips',
+    description: 'The padding on the status chips varies between different screens.',
     reportedAt: '3 days ago',
     category: 'Design System',
     priority: 'low',
@@ -433,7 +437,9 @@ const DashboardScreen = ({
           <div className="bg-tertiary-brand/5 p-6 rounded-xl border border-tertiary-brand/10 flex flex-col justify-between">
             <div>
               <span className="text-[11px] font-bold text-tertiary-brand uppercase tracking-wider mb-2 block">Urgent Action</span>
-              <h2 className="font-headline text-3xl font-bold text-tertiary-brand">03</h2>
+              <h2 className="font-headline text-3xl font-bold text-tertiary-brand">
+                {bugs.filter(b => b.priority === 'high' && b.status === 'open').length.toString().padStart(2, '0')}
+              </h2>
             </div>
             <span className="text-xs text-tertiary-brand/80 font-medium">Critical blockers detected</span>
           </div>
@@ -712,7 +718,7 @@ const ReportScreen = ({ onBack, onSubmit }: { onBack: () => void, onSubmit: (bug
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ title, priority, status, category: 'General' });
+    onSubmit({ title, description, priority, status, category: 'General' });
   };
 
   return (
@@ -882,12 +888,13 @@ const ReportScreen = ({ onBack, onSubmit }: { onBack: () => void, onSubmit: (bug
 
 const EditScreen = ({ bug, onBack, onSubmit }: { bug: BugTicket, onBack: () => void, onSubmit: (updatedBug: BugTicket) => void }) => {
   const [title, setTitle] = useState(bug.title);
+  const [description, setDescription] = useState(bug.description || '');
   const [priority, setPriority] = useState<Priority>(bug.priority);
   const [status, setStatus] = useState<Status>(bug.status);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ ...bug, title, priority, status });
+    onSubmit({ ...bug, title, description, priority, status });
   };
 
   return (
@@ -914,6 +921,17 @@ const EditScreen = ({ bug, onBack, onSubmit }: { bug: BugTicket, onBack: () => v
                 className="w-full bg-surface-low border-none rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary-brand/20 outline-none" 
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold tracking-wider text-outline uppercase">Description</label>
+              <textarea 
+                className="w-full bg-surface-low border-none rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary-brand/20 outline-none resize-none" 
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 required
               />
             </div>
@@ -954,65 +972,101 @@ const EditScreen = ({ bug, onBack, onSubmit }: { bug: BugTicket, onBack: () => v
   );
 };
 
-const SettingsScreen = ({ onBack }: { onBack: () => void }) => (
-  <div className="min-h-screen bg-surface flex flex-col">
-    <header className="w-full sticky top-0 z-50 bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 py-4 border-b border-outline-variant/10">
-      <div className="flex items-center gap-3">
-        <Bug className="text-primary-brand w-6 h-6" />
-        <h1 className="font-headline text-2xl font-bold tracking-tight text-on-surface">Settings</h1>
-      </div>
-      <button onClick={onBack} className="text-sm font-bold text-outline hover:text-primary-brand transition-colors">Back</button>
-    </header>
-    <main className="flex-grow flex flex-col items-center px-6 py-12">
-      <div className="w-full max-w-2xl bg-surface-lowest rounded-2xl p-8 editorial-shadow border border-outline-variant/10">
-        <h2 className="font-headline text-2xl font-bold text-on-surface mb-8">Account Configuration</h2>
-        <div className="space-y-6">
-          <div className="p-4 bg-surface-low rounded-xl flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold text-on-surface">Dark Mode</p>
-              <p className="text-xs text-outline">Adjust the system appearance</p>
-            </div>
-            <div className="w-12 h-6 bg-secondary-brand rounded-full relative">
-              <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
-            </div>
-          </div>
-          <div className="p-4 bg-surface-low rounded-xl flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold text-on-surface">Two-Factor Authentication</p>
-              <p className="text-xs text-outline">Add an extra layer of security</p>
-            </div>
-            <button className="text-xs font-bold text-primary-brand">Enable</button>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
-);
+const SettingsScreen = ({ onBack }: { onBack: () => void }) => {
+  const [darkMode, setDarkMode] = useState(false);
 
-const NotificationsScreen = ({ onBack }: { onBack: () => void }) => (
-  <div className="min-h-screen bg-surface flex flex-col">
-    <header className="w-full sticky top-0 z-50 bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 py-4 border-b border-outline-variant/10">
-      <div className="flex items-center gap-3">
-        <Bug className="text-primary-brand w-6 h-6" />
-        <h1 className="font-headline text-2xl font-bold tracking-tight text-on-surface">Notifications</h1>
-      </div>
-      <button onClick={onBack} className="text-sm font-bold text-outline hover:text-primary-brand transition-colors">Back</button>
-    </header>
-    <main className="flex-grow flex flex-col items-center px-6 py-12">
-      <div className="w-full max-w-2xl bg-surface-lowest rounded-2xl p-8 editorial-shadow border border-outline-variant/10">
-        <h2 className="font-headline text-2xl font-bold text-on-surface mb-8">Preferences</h2>
-        <div className="space-y-4">
-          {['Email Notifications', 'Push Notifications', 'Weekly Summary', 'Critical Alerts'].map((pref) => (
-            <div key={pref} className="flex items-center justify-between py-3 border-b border-outline-variant/5">
-              <span className="text-sm font-medium text-on-surface">{pref}</span>
-              <input type="checkbox" defaultChecked className="w-4 h-4 accent-primary-brand" />
-            </div>
-          ))}
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  return (
+    <div className="min-h-screen bg-surface flex flex-col">
+      <header className="w-full sticky top-0 z-50 bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 py-4 border-b border-outline-variant/10">
+        <div className="flex items-center gap-3">
+          <Bug className="text-primary-brand w-6 h-6" />
+          <h1 className="font-headline text-2xl font-bold tracking-tight text-on-surface">Settings</h1>
         </div>
-      </div>
-    </main>
-  </div>
-);
+        <button onClick={onBack} className="text-sm font-bold text-outline hover:text-primary-brand transition-colors">Back</button>
+      </header>
+      <main className="flex-grow flex flex-col items-center px-6 py-12">
+        <div className="w-full max-w-2xl bg-surface-lowest rounded-2xl p-8 editorial-shadow border border-outline-variant/10">
+          <h2 className="font-headline text-2xl font-bold text-on-surface mb-8">Account Configuration</h2>
+          <div className="space-y-6">
+            <div className="p-4 bg-surface-low rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-on-surface">Dark Mode</p>
+                <p className="text-xs text-outline">Adjust the system appearance</p>
+              </div>
+              <button 
+                onClick={() => setDarkMode(!darkMode)}
+                className={`w-12 h-6 rounded-full relative transition-colors ${darkMode ? 'bg-secondary-brand' : 'bg-surface-highest'}`}
+              >
+                <motion.div 
+                  animate={{ x: darkMode ? 24 : 4 }}
+                  className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm" 
+                />
+              </button>
+            </div>
+            <div className="p-4 bg-surface-low rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-on-surface">Two-Factor Authentication</p>
+                <p className="text-xs text-outline">Add an extra layer of security</p>
+              </div>
+              <button className="text-xs font-bold text-primary-brand">Enable</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+const NotificationsScreen = ({ onBack }: { onBack: () => void }) => {
+  const [prefs, setPrefs] = useState({
+    'Email Notifications': true,
+    'Push Notifications': true,
+    'Weekly Summary': false,
+    'Critical Alerts': true
+  });
+
+  const togglePref = (pref: string) => {
+    setPrefs(prev => ({ ...prev, [pref as keyof typeof prefs]: !prev[pref as keyof typeof prefs] }));
+  };
+
+  return (
+    <div className="min-h-screen bg-surface flex flex-col">
+      <header className="w-full sticky top-0 z-50 bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 py-4 border-b border-outline-variant/10">
+        <div className="flex items-center gap-3">
+          <Bug className="text-primary-brand w-6 h-6" />
+          <h1 className="font-headline text-2xl font-bold tracking-tight text-on-surface">Notifications</h1>
+        </div>
+        <button onClick={onBack} className="text-sm font-bold text-outline hover:text-primary-brand transition-colors">Back</button>
+      </header>
+      <main className="flex-grow flex flex-col items-center px-6 py-12">
+        <div className="w-full max-w-2xl bg-surface-lowest rounded-2xl p-8 editorial-shadow border border-outline-variant/10">
+          <h2 className="font-headline text-2xl font-bold text-on-surface mb-8">Preferences</h2>
+          <div className="space-y-4">
+            {Object.keys(prefs).map((pref) => (
+              <div key={pref} className="flex items-center justify-between py-3 border-b border-outline-variant/5">
+                <span className="text-sm font-medium text-on-surface">{pref}</span>
+                <input 
+                  type="checkbox" 
+                  checked={prefs[pref as keyof typeof prefs]} 
+                  onChange={() => togglePref(pref)}
+                  className="w-4 h-4 accent-primary-brand cursor-pointer" 
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
 
 interface RegisteredUser {
   name: string;
@@ -1053,7 +1107,7 @@ export default function App() {
   const handleAddBug = (newBug: Omit<BugTicket, 'id' | 'reportedAt' | 'assignee'>) => {
     const bug: BugTicket = {
       ...newBug,
-      id: `#BT-${1000 + bugs.length + 1}`,
+      id: `#BT-${Date.now().toString().slice(-4)}`,
       reportedAt: 'just now',
       assignee: { name: user.name, initials: user.initials }
     };
