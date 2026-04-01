@@ -81,14 +81,15 @@ const MOCK_BUGS: BugTicket[] = [
 
 // --- Components ---
 
-const LoginScreen = ({ onLogin, onRegisterClick }: { onLogin: (email: string, pass: string) => void, onRegisterClick: () => void }) => {
+const LoginScreen = ({ onLogin, onRegisterClick, registeredUsers }: { onLogin: (email: string, pass: string) => void, onRegisterClick: () => void, registeredUsers: RegisteredUser[] }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'admin@bugtracker.com' && password === 'password123') {
+    const user = registeredUsers.find(u => u.email === email && u.password === password);
+    if (user) {
       onLogin(email, password);
     } else {
       setError('Invalid credentials.');
@@ -201,7 +202,7 @@ const LoginScreen = ({ onLogin, onRegisterClick }: { onLogin: (email: string, pa
   );
 };
 
-const RegisterScreen = ({ onBack, onRegister }: { onBack: () => void, onRegister: (name: string, email: string) => void }) => {
+const RegisterScreen = ({ onBack, onRegister }: { onBack: () => void, onRegister: (name: string, email: string, pass: string) => void }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -225,7 +226,7 @@ const RegisterScreen = ({ onBack, onRegister }: { onBack: () => void, onRegister
             <p className="text-on-surface-variant text-sm">Join the clinical bug tracking network</p>
           </div>
 
-          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onRegister(name, email); }}>
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onRegister(name, email, password); }}>
             <div>
               <label className="block text-[11px] font-medium uppercase tracking-wider text-on-surface-variant mb-2 ml-1">Full Name</label>
               <input 
@@ -1013,20 +1014,39 @@ const NotificationsScreen = ({ onBack }: { onBack: () => void }) => (
   </div>
 );
 
+interface RegisteredUser {
+  name: string;
+  email: string;
+  password: string;
+  initials: string;
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([
+    { name: 'Admin User', email: 'admin@bugtracker.com', password: 'password123', initials: 'AU' }
+  ]);
   const [user, setUser] = useState<User>({ name: 'Admin User', email: 'admin@bugtracker.com', initials: 'AU' });
   const [bugs, setBugs] = useState<BugTicket[]>(MOCK_BUGS);
   const [editingBug, setEditingBug] = useState<BugTicket | null>(null);
 
   const handleLogin = (email: string) => {
-    const isDefaultAdmin = email === 'admin@bugtracker.com';
-    const name = isDefaultAdmin ? 'Admin User' : email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
-    setUser({
-      name,
-      email: email,
-      initials: isDefaultAdmin ? 'AU' : (name.charAt(0) + (name.charAt(1) || '')).toUpperCase()
-    });
+    const loggedInUser = registeredUsers.find(u => u.email === email);
+    if (loggedInUser) {
+      setUser({
+        name: loggedInUser.name,
+        email: loggedInUser.email,
+        initials: loggedInUser.initials
+      });
+      setScreen('dashboard');
+    }
+  };
+
+  const handleRegister = (name: string, email: string, password: string) => {
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || email.charAt(0).toUpperCase();
+    const newUser = { name, email, password, initials };
+    setRegisteredUsers([...registeredUsers, newUser]);
+    setUser({ name, email, initials });
     setScreen('dashboard');
   };
 
@@ -1069,6 +1089,7 @@ export default function App() {
             <LoginScreen 
               onLogin={handleLogin} 
               onRegisterClick={() => setScreen('register')}
+              registeredUsers={registeredUsers}
             />
           </motion.div>
         )}
@@ -1083,14 +1104,7 @@ export default function App() {
           >
             <RegisterScreen 
               onBack={() => setScreen('login')} 
-              onRegister={(name, email) => {
-                setUser({ 
-                  name, 
-                  email, 
-                  initials: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || email.charAt(0).toUpperCase()
-                });
-                setScreen('dashboard');
-              }}
+              onRegister={handleRegister}
             />
           </motion.div>
         )}
